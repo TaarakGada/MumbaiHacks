@@ -5,6 +5,7 @@ import { connectDB } from './config/db.js';
 import { authRoutes } from './routes/authRoutes.js';
 import { emailRoutes } from './routes/emailRoutes.js';
 import { calendarRoutes } from './routes/calendarRoutes.js';
+import { taskRoutes } from './routes/taskRoutes.js';
 
 const app = express();
 
@@ -16,6 +17,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/emails', emailRoutes);
 app.use('/api/calendar', calendarRoutes);
+// app.use('/api/workflow', workflowRoutes);
+app.use('/api/task', taskRoutes);
 
 const PORT = process.env.PORT || 3000;
 

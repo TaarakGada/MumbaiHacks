@@ -1,3 +1,4 @@
+// models/User.js
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema(
@@ -43,6 +44,12 @@ const userSchema = new mongoose.Schema(
                 summary: String,
                 start: Date,
                 end: Date,
+            },
+        ],
+        tasks: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Task', // Reference to the Task model
             },
         ],
     },
