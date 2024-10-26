@@ -38,7 +38,16 @@ class EmailService {
                     const body = this.extractCleanBody(email.payload);
                     const snippet = email.snippet || '';
 
-                    return { id: message.id, subject, from, body, snippet };
+                    const keyword = this.findMatchingKeyword(subject);
+
+                    return {
+                        id: message.id,
+                        subject,
+                        from,
+                        body,
+                        snippet,
+                        keyword,
+                    };
                 })
             );
 
@@ -57,6 +66,15 @@ class EmailService {
                 return acc;
             },
             { subject: '', from: '' }
+        );
+    }
+
+    findMatchingKeyword(subject) {
+        // Find the first keyword that matches the subject
+        return (
+            this.keywords.find((keyword) =>
+                subject.toLowerCase().includes(keyword)
+            ) || 'none' // Default to 'none' if no keyword matches
         );
     }
 
@@ -81,24 +99,20 @@ class EmailService {
             }
         };
 
-        // Extract text content from email parts
         if (payload.parts?.length) {
             getTextFromParts(payload.parts);
         } else if (payload.body?.data) {
             rawBody = Buffer.from(payload.body.data, 'base64').toString();
         }
 
-        // Clean up the body by removing quoted or forwarded content
         return this.cleanBodyText(rawBody);
     }
 
     cleanBodyText(body) {
-        // Remove forwarded or quoted sections
         const cleanedBody = body
             .split(/---------- Forwarded message ----------|On .*? wrote:/)[0]
             .trim();
 
-        // Remove any leftover subject or sender info from the body
         return cleanedBody
             .replace(/Subject:.*|From:.*|To:.*|Date:.*/gi, '')
             .trim();
@@ -116,7 +130,9 @@ class EmailService {
             const { subject, from } = this.extractHeaders(data.payload.headers);
             const body = this.extractCleanBody(data.payload);
 
-            return { id: emailId, subject, from, body };
+            const keyword = this.findMatchingKeyword(subject);
+
+            return { id: emailId, subject, from, body, keyword };
         } catch (error) {
             console.error('Error fetching email details:', error.message);
             throw new Error('Unable to fetch email details.');

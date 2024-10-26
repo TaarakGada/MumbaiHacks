@@ -1,41 +1,47 @@
 // routes/workflowRoutes.js
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { authMiddleware } from '../middleware/auth.js';
 import { emailService } from '../services/emailService.js';
 import { calendarService } from '../services/calendarService.js';
-import { taskService } from '../services/taskService.js'; // Assuming you have a task service
-import { getGroqChatCompletion } from '../services/groqService.js';
+import { User } from '../models/User.js'; // Ensure User model is correctly imported
+import { getGroqChatCompletion } from '../services/groqConnection.js';
 
 const router = Router();
 
 router.get('/generate-workflow', authMiddleware, async (req, res) => {
     try {
-        const { accessToken } = req.userData;
+        const { userId } = req.user; // Extract userId from the decoded JWT token
 
-        // Fetch emails, calendar events, and tasks in parallel
-        const [emails, calendarEvents, tasks] = await Promise.all([
-            emailService.getEmailsWithDetails(accessToken),
-            calendarService.getEvents(accessToken),
-            taskService.getTasks(accessToken), // Assuming task service exists
-        ]);
+        // Fetch the user from the database and populate tasks
+        const user = await User.findById(userId).populate('tasks');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-        // Prepare the prompt for Groq
+        // Fetch emails and calendar events using the access token
+        const emails = await emailService.getEmailsWithDetails(
+            user.accessToken
+        );
+        const calendarEvents = await calendarService.getEvents(
+            user.accessToken
+        );
+        const tasks = user.tasks; // Populated tasks from the user model
+
+        // Create a prompt with fetched data for the Groq API
         const prompt = `
-            Generate a prioritized workflow based on the following data:
-            Emails: ${JSON.stringify(emails, null, 2)}
-            Calendar Events: ${JSON.stringify(calendarEvents, null, 2)}
-            Tasks: ${JSON.stringify(tasks, null, 2)}
-            Please prioritize tasks considering deadlines and effort.
+            Emails: ${JSON.stringify(emails)}
+            Calendar Events: ${JSON.stringify(calendarEvents)}
+            Tasks: ${JSON.stringify(tasks)}
         `;
 
-        // Get the workflow from Groq
+        // Get workflow output from the Groq API
         const workflow = await getGroqChatCompletion(prompt);
 
-        // Send the response to the frontend
+        // Send the generated workflow to the frontend
         res.json({ workflow });
     } catch (error) {
         console.error('Error generating workflow:', error.message);
-        res.status(500).json({ error: 'Failed to generate workflow.' });
+        res.status(500).json({ error: error.message });
     }
 });
 
